@@ -2,9 +2,16 @@ const itemForm = document.getElementById('item-form');
 const itemInput = document.getElementById('item-input');
 const itemList = document.getElementById('item-list');
 const clearBtn = document.getElementById('clear');
-const itemFiler = document.getElementById('filter');
+const itemFilter = document.getElementById('filter');
 
-function addItem(e) {
+function displayItems() {
+  const itemsFromStorage = getItemsFromStorage();
+  itemsFromStorage.forEach((item) => addItemDOM(item));
+
+  checkUI();
+}
+
+function onAddItemSubmit(e) {
   e.preventDefault();
 
   const newItem = itemInput.value;
@@ -15,19 +22,27 @@ function addItem(e) {
     return;
   }
 
+  // Create item DOM element
+  addItemDOM(newItem);
+
+  // Add item to local storage
+  addItemToStorage(newItem);
+
+  checkUI();
+
+  itemInput.value = '';
+}
+
+function addItemDOM(item) {
   // Create List Item
   const li = document.createElement('li');
-  li.appendChild(document.createTextNode(newItem));
+  li.appendChild(document.createTextNode(item));
 
   const button = createButton('remove-item btn-link text-red');
   li.appendChild(button);
 
   // Add li to the DOM
   itemList.appendChild(li);
-
-  checkUI();
-
-  itemInput.value = '';
 }
 
 function createButton(classes) {
@@ -47,14 +62,54 @@ function createIcon(classes) {
   return icon;
 }
 
-function removeItem(e) {
-  if (e.target.parentElement.classList.contains('remove-item')) {
-    if (confirm('Are you sure?')) {
-      e.target.parentElement.parentElement.remove();
+function addItemToStorage(item) {
+  const itemsFromStorage = getItemsFromStorage();
 
-      checkUI();
-    }
+  // Add new item to array
+  itemsFromStorage.push(item);
+
+  // Convert to JSON string and set to local storage
+  localStorage.setItem('items', JSON.stringify(itemsFromStorage));
+}
+
+function getItemsFromStorage() {
+  let itemsFromStorage;
+
+  if (localStorage.getItem('items') === null) {
+    itemsFromStorage = [];
+  } else {
+    itemsFromStorage = JSON.parse(localStorage.getItem('items'));
   }
+
+  return itemsFromStorage;
+}
+
+function onClickItem(e) {
+  if (e.target.parentElement.classList.contains('remove-item')) {
+    removeItem(e.target.parentElement.parentElement);
+  }
+}
+
+function removeItem(item) {
+  if (confirm('Are you sure?')) {
+    // Remove item from DOM
+    item.remove();
+
+    // Remove item from storage
+    removeItemFromStorage(item.textContent);
+
+    checkUI();
+  }
+}
+
+function removeItemFromStorage(item) {
+  let itemsFromStorage = getItemsFromStorage();
+
+  // Filter out item to be removed
+  itemsFromStorage = itemsFromStorage.filter((i) => i !== item);
+
+  // Re-set to local storage
+  localStorage.setItem('items', JSON.stringify(itemsFromStorage));
 }
 
 function clearItems() {
@@ -62,7 +117,25 @@ function clearItems() {
     itemList.removeChild(itemList.firstChild);
   }
 
+  // Clear from localStorage
+  localStorage.removeItem('items');
+
   checkUI();
+}
+
+function filterItems(e) {
+  const items = itemList.querySelectorAll('li');
+  const text = e.target.value.toLowerCase();
+
+  items.forEach((item) => {
+    const itemName = item.firstChild.textContent.toLowerCase();
+
+    if (itemName.indexOf(text) != -1) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
+    }
+  });
 }
 
 function checkUI() {
@@ -70,16 +143,23 @@ function checkUI() {
 
   if (items.length === 0) {
     clearBtn.style.display = 'none';
-    itemFiler.style.display = 'none';
+    itemFilter.style.display = 'none';
   } else {
     clearBtn.style.display = 'block';
-    itemFiler.style.display = 'block';
+    itemFilter.style.display = 'block';
   }
 }
 
-// Event Listeners
-itemForm.addEventListener('submit', addItem);
-itemList.addEventListener('click', removeItem);
-clearBtn.addEventListener('click', clearItems);
+// Initialize app
+function init() {
+  // Event Listeners
+  itemForm.addEventListener('submit', onAddItemSubmit);
+  itemList.addEventListener('click', onClickItem);
+  clearBtn.addEventListener('click', clearItems);
+  itemFilter.addEventListener('input', filterItems);
+  document.addEventListener('DOMContentLoaded', displayItems);
 
-checkUI();
+  checkUI();
+}
+
+init();
